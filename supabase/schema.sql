@@ -185,6 +185,51 @@ begin
 end;
 $$;
 
+create or replace function public.member_redeem_reward(p_reward_id text)
+returns jsonb language plpgsql security definer
+set search_path = public, pg_temp
+as $
+declare
+  member public.profiles;
+  reward_title text;
+  reward_description text;
+  reward_cost integer;
+  discount numeric(8,2) := 0;
+  reward_code text;
+  expiry timestamptz := now() + interval '30 days';
+begin
+  if auth.uid() is null then raise exception 'Sign in required'; end if;
+  case p_reward_id
+    when 'cake' then
+      reward_title := 'Whole celebration cake reward';
+      reward_description := 'Redeem one eligible whole cake from the participating selection. Confirm size, flavour, collection date, and availability with your branch.';
+      reward_cost := 20000;
+    when 'slice' then
+      reward_title := 'Cake slice reward';
+      reward_description := 'Redeem one cake slice from the participating branch selection. Flavours and stock vary by branch.';
+      reward_cost := 3000;
+    when 'discount' then
+      reward_title := 'RM10 bakery voucher';
+      reward_description := 'RM10 off your next visit. Show the voucher code to Little Oven staff before payment; confirm terms with the branch.';
+      reward_cost := 500;
+      discount := 10;
+    else
+      raise exception 'Unknown reward';
+  end case;
+  update public.profiles
+  set points = points - reward_cost, updated_at = now()
+  where id = auth.uid() and status = 'active' and points >= reward_cost
+  returning * into member;
+  if member.id is null then raise exception 'Not enough points or active membership required'; end if;
+  insert into public.point_transactions(member_id, delta, reason, created_by)
+  values (member.id, -reward_cost, 'Reward redemption: ' || reward_title, member.id);
+  reward_code := 'REWARD-' || upper(substr(encode(gen_random_bytes(5),'hex'),1,10));
+  insert into public.vouchers(member_id, code, title, description, discount_amount, expires_at, source)
+  values (member.id, reward_code, reward_title, reward_description, discount, expiry, 'manager');
+  return jsonb_build_object('points',member.points,'voucher_code',reward_code,'voucher_title',reward_title);
+end;
+$;
+
 create or replace function public.manager_dashboard_summary()
 returns jsonb language plpgsql stable security definer
 set search_path = public, pg_temp
@@ -322,6 +367,7 @@ revoke all on function public.current_user_is_manager() from public;
 revoke all on function public.update_my_profile(text,text,text,date) from public;
 revoke all on function public.touch_member_activity() from public;
 revoke all on function public.ensure_birthday_voucher() from public;
+revoke all on function public.member_redeem_reward(text) from public;
 revoke all on function public.manager_dashboard_summary() from public;
 revoke all on function public.manager_adjust_points(uuid,integer,text,text) from public;
 revoke all on function public.manager_set_member_status(uuid,text) from public;
@@ -333,6 +379,7 @@ grant execute on function public.current_user_is_manager() to authenticated;
 grant execute on function public.update_my_profile(text,text,text,date) to authenticated;
 grant execute on function public.touch_member_activity() to authenticated;
 grant execute on function public.ensure_birthday_voucher() to authenticated;
+grant execute on function public.member_redeem_reward(text) to authenticated;
 grant execute on function public.manager_dashboard_summary() to authenticated;
 grant execute on function public.manager_adjust_points(uuid,integer,text,text) to authenticated;
 grant execute on function public.manager_set_member_status(uuid,text) to authenticated;
