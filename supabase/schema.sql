@@ -106,7 +106,8 @@ create table if not exists public.member_celebrations (
 );
 
 create index if not exists profiles_birthday_idx on public.profiles (birthday);
-create index if not exists member_celebrations_member_date_idx on public.member_celebrations (member_id, celebration_date);\ncreate index if not exists profiles_status_activity_idx on public.profiles (status, last_active_at desc);
+create index if not exists member_celebrations_member_date_idx on public.member_celebrations (member_id, celebration_date);
+create index if not exists profiles_status_activity_idx on public.profiles (status, last_active_at desc);
 create index if not exists point_transactions_member_date_idx on public.point_transactions (member_id, created_at desc);
 create index if not exists vouchers_member_status_idx on public.vouchers (member_id, status, expires_at);
 create index if not exists messages_member_date_idx on public.messages (member_id, sent_at desc);
@@ -395,7 +396,8 @@ alter table public.profiles enable row level security;
 alter table public.point_transactions enable row level security;
 alter table public.promotions enable row level security;
 alter table public.vouchers enable row level security;
-alter table public.messages enable row level security;\nalter table public.member_celebrations enable row level security;
+alter table public.messages enable row level security;
+alter table public.member_celebrations enable row level security;
 
 drop policy if exists member_celebrations_owner_manage on public.member_celebrations;
 create policy member_celebrations_owner_manage on public.member_celebrations for all to authenticated using (member_id = auth.uid()) with check (member_id = auth.uid());
@@ -420,7 +422,8 @@ create policy vouchers_read_self_or_manager on public.vouchers for select to aut
 drop policy if exists messages_read_self_or_manager on public.messages;
 create policy messages_read_self_or_manager on public.messages for select to authenticated using (member_id = auth.uid() or public.is_manager());
 
-grant select on public.manager_roles, public.profiles, public.point_transactions, public.promotions, public.vouchers, public.messages, public.member_celebrations to authenticated;\ngrant insert, update, delete on public.member_celebrations to authenticated;
+grant select on public.manager_roles, public.profiles, public.point_transactions, public.promotions, public.vouchers, public.messages, public.member_celebrations to authenticated;
+grant insert, update, delete on public.member_celebrations to authenticated;
 grant insert, update, delete on public.promotions to authenticated;
 grant usage, select on sequence public.member_number_seq to authenticated;
 revoke all on function public.is_manager() from public;
