@@ -1,22 +1,34 @@
 # Little Oven Supabase setup
 
-The customer app and manager console use the Supabase project configured in `../supabase-config.js`. That file contains the public anon key, which is intended for browser use. Never put a service-role or secret key in the website.
+The customer app and manager console use the Supabase project configured in `../supabase-config.js`. That file contains the public anon key, which is intended for browser use. Never put the service-role key in the website.
 
 ## Activate the database
 
 1. Open the Supabase project and go to **SQL Editor**.
-2. Open [schema.sql](./schema.sql), copy the full file, paste it into a new SQL query, and run it.
+2. Open [schema.sql](./schema.sql), copy the full file, paste it into a new SQL query, and run it. If you already ran an earlier version, run the current full file again; it creates the new member-management RPCs and is written to be repeatable.
 3. In **Authentication → Users**, create the Little Oven manager account. Copy its user UUID.
 4. In SQL Editor, give that account manager access:
    ```sql
-   insert into public.manager_roles(user_id) values ('PASTE_MANAGER_USER_UUID');
+   insert into public.manager_roles(user_id) values ('MANAGER_USER_UUID');
    ```
 5. In **Authentication → URL Configuration**, set the Site URL to:
    `https://liviltech.github.io/littleoven/`
    Add that same URL to the Redirect URLs list.
 6. Open [the manager console](https://liviltech.github.io/littleoven/admin.html) and sign in with the manager account.
 
-The member app uses email and password for Supabase Auth. Members can create accounts from the site; birthday vouchers are generated automatically during the member's birthday month. Manager-issued messages appear in the member's **Messages** menu.
+## Deploy the secure manager member function
+
+Creating a member account or changing the account email requires Supabase Auth's server-side admin API. The site calls the Edge Function source at [manager-members](./functions/manager-members/index.ts); the service-role key stays in Supabase's function environment and is never put in GitHub or the browser.
+
+In your Supabase project:
+
+1. Open **Edge Functions → Deploy a new function → Via Editor** and create a function named `manager-members`.
+2. Replace the starter code with the full contents of [index.ts](./functions/manager-members/index.ts), then deploy it.
+3. Keep the function's JWT verification enabled. The function also checks the caller's manager role before performing any action.
+
+The platform provides `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions as a server-side environment variable. Do not paste it into this repository, the browser config, or this chat.
+
+The **Members** page can then invite a new member by email and edit a member's name, email, phone, sex, and birthday. Invitations are delivered by Supabase Auth email. Point adjustments and status changes use protected database functions.
 
 ## Manager tools
 
