@@ -120,6 +120,23 @@ create trigger on_auth_user_created_littleoven
 after insert on auth.users
 for each row execute procedure public.handle_new_member();
 
+create or replace function public.sync_member_email()
+returns trigger language plpgsql security definer
+set search_path = public, pg_temp
+as $sync_email$
+begin
+  update public.profiles set email = coalesce(new.email,''), updated_at = now() where id = new.id;
+  return new;
+end;
+$sync_email$;
+
+drop trigger if exists on_auth_email_updated_littleoven on auth.users;
+create trigger on_auth_email_updated_littleoven
+after update of email on auth.users
+for each row
+when (old.email is distinct from new.email)
+execute procedure public.sync_member_email();
+
 create or replace function public.update_my_profile(
   p_full_name text, p_phone text, p_sex text, p_birthday date default null
 )
