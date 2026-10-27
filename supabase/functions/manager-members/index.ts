@@ -68,12 +68,17 @@ Deno.serve(async (req: Request) => {
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address.");
       if (!fullName) throw new Error("Full name is required.");
 
-      const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-        data: { full_name: fullName, phone, sex, birthday },
-        redirectTo: "https://liviltech.github.io/littleoven/",
+      const password = String(input.password || "");
+      if (password.length < 8) throw new Error("Initial password must be at least 8 characters.");
+
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName, phone, sex, birthday },
       });
       if (error) throw error;
-      return response({ user_id: data.user.id, message: "Invitation sent. The member can finish setting up their account from the email." });
+      return response({ user_id: data.user.id, message: "Member account created and active. No verification email was sent. Share the initial password directly with the member." });
     }
 
     if (input.action === "update") {
