@@ -266,6 +266,30 @@ begin
 end;
 $$;
 
+create or replace function public.manager_update_member_profile(
+  p_member_id uuid, p_full_name text, p_phone text, p_sex text, p_birthday date
+)
+returns public.profiles language plpgsql security definer
+set search_path = public, pg_temp
+as $manager_update$
+declare result public.profiles;
+begin
+  if not public.is_manager() then raise exception 'Manager access required'; end if;
+  if trim(coalesce(p_full_name,'')) = '' then raise exception 'Full name is required'; end if;
+  if p_birthday > timezone('Asia/Kuala_Lumpur', now())::date then raise exception 'Birthday cannot be in the future'; end if;
+  update public.profiles
+  set full_name = left(trim(p_full_name),120),
+      phone = left(trim(coalesce(p_phone,'')),40),
+      sex = left(trim(coalesce(p_sex,'')),40),
+      birthday = p_birthday,
+      updated_at = now()
+  where id = p_member_id
+  returning * into result;
+  if result.id is null then raise exception 'Member not found'; end if;
+  return result;
+end;
+$manager_update$;
+
 create or replace function public.manager_set_member_status(p_member_id uuid, p_status text)
 returns public.profiles language plpgsql security definer
 set search_path = public, pg_temp
@@ -370,6 +394,7 @@ revoke all on function public.ensure_birthday_voucher() from public;
 revoke all on function public.member_redeem_reward(text) from public;
 revoke all on function public.manager_dashboard_summary() from public;
 revoke all on function public.manager_adjust_points(uuid,integer,text,text) from public;
+revoke all on function public.manager_update_member_profile(uuid,text,text,text,date) from public;
 revoke all on function public.manager_set_member_status(uuid,text) from public;
 revoke all on function public.manager_issue_voucher(text,text,numeric,integer[],timestamptz,uuid,text) from public;
 revoke all on function public.manager_send_message(uuid,text,text) from public;
@@ -382,6 +407,7 @@ grant execute on function public.ensure_birthday_voucher() to authenticated;
 grant execute on function public.member_redeem_reward(text) to authenticated;
 grant execute on function public.manager_dashboard_summary() to authenticated;
 grant execute on function public.manager_adjust_points(uuid,integer,text,text) to authenticated;
+grant execute on function public.manager_update_member_profile(uuid,text,text,text,date) to authenticated;
 grant execute on function public.manager_set_member_status(uuid,text) to authenticated;
 grant execute on function public.manager_issue_voucher(text,text,numeric,integer[],timestamptz,uuid,text) to authenticated;
 grant execute on function public.manager_send_message(uuid,text,text) to authenticated;
