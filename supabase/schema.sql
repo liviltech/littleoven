@@ -162,8 +162,8 @@ begin
   select * into p from public.profiles where id = auth.uid() and status = 'active';
   if p.id is null then return null; end if;
   if p.birthday is null then return null; end if;
-  this_month := extract(month from current_date)::integer;
-  this_year := extract(year from current_date)::integer;
+  this_month := extract(month from timezone('Asia/Kuala_Lumpur', now()))::integer;
+  this_year := extract(year from timezone('Asia/Kuala_Lumpur', now()))::integer;
   if extract(month from p.birthday)::integer <> this_month then return null; end if;
   insert into public.vouchers (
     member_id, code, title, description, discount_amount, eligible_sizes,
@@ -175,8 +175,8 @@ begin
     'Birthday month RM20 cake voucher',
     'RM20 off any 8-inch or 10-inch whole cake. Walk in and show this voucher at the counter to claim.',
     20.00, array[8,10],
-    date_trunc('month', now()),
-    (date_trunc('month', now()) + interval '1 month' - interval '1 millisecond'),
+    date_trunc('month', timezone('Asia/Kuala_Lumpur', now())) at time zone 'Asia/Kuala_Lumpur',
+    (date_trunc('month', timezone('Asia/Kuala_Lumpur', now())) + interval '1 month' - interval '1 millisecond') at time zone 'Asia/Kuala_Lumpur',
     'available', 'birthday', 'birthday:' || this_year
   )
   on conflict (member_id, source_key) do nothing;
@@ -194,7 +194,7 @@ begin
   return jsonb_build_object(
     'active_members', (select count(*) from public.profiles where status = 'active'),
     'members', (select count(*) from public.profiles),
-    'birthdays_this_month', (select count(*) from public.profiles where status = 'active' and birthday is not null and extract(month from birthday) = extract(month from current_date)),
+    'birthdays_this_month', (select count(*) from public.profiles where status = 'active' and birthday is not null and extract(month from birthday) = extract(month from timezone('Asia/Kuala_Lumpur', now()))),
     'unread_messages', (select count(*) from public.messages where read_at is null)
   );
 end;
