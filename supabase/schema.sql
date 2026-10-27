@@ -188,9 +188,9 @@ $$;
 create or replace function public.member_redeem_reward(p_reward_id text)
 returns jsonb language plpgsql security definer
 set search_path = public, pg_temp
-as $
+as $member_redeem$
 declare
-  member public.profiles;
+  member_profile public.profiles;
   reward_title text;
   reward_description text;
   reward_cost integer;
@@ -219,16 +219,16 @@ begin
   update public.profiles
   set points = points - reward_cost, updated_at = now()
   where id = auth.uid() and status = 'active' and points >= reward_cost
-  returning * into member;
-  if member.id is null then raise exception 'Not enough points or active membership required'; end if;
+  returning * into member_profile;
+  if member_profile.id is null then raise exception 'Not enough points or active membership required'; end if;
   insert into public.point_transactions(member_id, delta, reason, created_by)
   values (member.id, -reward_cost, 'Reward redemption: ' || reward_title, member.id);
   reward_code := 'REWARD-' || upper(substr(encode(gen_random_bytes(5),'hex'),1,10));
   insert into public.vouchers(member_id, code, title, description, discount_amount, expires_at, source)
   values (member.id, reward_code, reward_title, reward_description, discount, expiry, 'manager');
-  return jsonb_build_object('points',member.points,'voucher_code',reward_code,'voucher_title',reward_title);
+  return jsonb_build_object('points',member_profile.points,'voucher_code',reward_code,'voucher_title',reward_title);
 end;
-$;
+$member_redeem$;
 
 create or replace function public.manager_dashboard_summary()
 returns jsonb language plpgsql stable security definer
