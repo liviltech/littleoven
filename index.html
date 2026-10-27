@@ -203,6 +203,7 @@ var cfg=window.LITTLEOVEN_SUPABASE||{};
 if(!cfg.url||!cfg.anonKey||cfg.url.indexOf('YOUR_')>=0||cfg.anonKey.indexOf('YOUR_')>=0)return false;
 if(!window.supabase){authMessage('Supabase could not load. Check your internet connection and refresh.');return true}
 var db=window.supabase.createClient(cfg.url,cfg.anonKey),remoteUser=null,remoteProfile=null,baseCheckBirthday=checkBirthdayCampaign,baseLogout=logout,baseGo=go,remoteCampaigns=[];
+try{authAccounts.forEach(function(a){delete a.password});localStorage.setItem(AUTH_KEY,JSON.stringify(authAccounts));localStorage.removeItem(SESSION_KEY)}catch(e){}
 function reportError(e){return e&&e.message?e.message:String(e)}
 function showRemoteError(e){authMessage(reportError(e))}
 async function call(name,args){var r=await db.rpc(name,args||{});if(r.error)throw r.error;return r.data}
@@ -243,7 +244,7 @@ intercept($('#reset-form'),async function(f){try{var r=await db.auth.resetPasswo
 intercept($('#profile-form'),async function(f){var b=f.querySelector('[type=submit]');if(b)b.disabled=true;try{var birthday=f.elements.birthday.value?parseDateEntry(f.elements.birthday.value):null;var r=await call('update_my_profile',{p_full_name:f.elements.name.value.trim(),p_phone:f.elements.phone.value.trim(),p_sex:f.elements.sex.value,p_birthday:birthday});remoteProfile=r;remoteUser=(await db.auth.getUser()).data.user;closeModal('profile-modal');await hydrate();notify('Personal details updated')}catch(e){notify(reportError(e))}finally{if(b)b.disabled=false}});
 db.auth.onAuthStateChange(function(event,session){if(event==='SIGNED_OUT'){remoteUser=null;hideMemberApp()}});
 db.auth.getSession().then(async function(r){if(r.error)throw r.error;if(r.data.session){remoteUser=r.data.session.user;await hydrate()}else hideMemberApp()}).catch(function(e){hideMemberApp();showRemoteError(e)});
-$('#login-identifier').setAttribute('type','email');$('#login-identifier').placeholder='you@example.com';var demo=$('.auth-demo');if(demo)demo.style.display='none';
+$('#login-identifier').setAttribute('type','email');$('#login-identifier').placeholder='you@example.com';$('#profile-email-input').readOnly=true;$('#profile-email-input').title='To change your account email, contact Little Oven.';var demo=$('.auth-demo');if(demo)demo.style.display='none';
 return true;
 }
 installMembershipFeatures();
